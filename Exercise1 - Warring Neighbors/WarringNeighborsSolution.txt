@@ -1,0 +1,88 @@
+/* 
+ * Warring Neighbors Program
+ * 
+ * Name: Ali
+ * Surname: Arabyarmohammadi
+ * 
+ * Name: Genís
+ * Surname: Martí Manresa
+ * 
+ */
+
+
+const False = 0
+const True = 1
+
+range Bool = False..True
+set BoolActions = {setTrue, setFalse, [False], [True]}
+
+BOOLVAR = VAL[False],
+VAL[v:Bool] = (setTrue -> VAL[True]
+				|setFalse -> VAL[False]
+				|[v] -> VAL[v]
+				).
+
+||FLAGS = (flag1:BOOLVAR || flag2:BOOLVAR).
+
+NEIGHBOR1 	= (flag1.setTrue -> TEST),
+TEST 		= (flag2[raised:Bool] ->
+				if (raised) then (flag1.setFalse -> NEIGHBOR1)
+				else (enter -> exit -> flag1.setFalse -> NEIGHBOR1)
+				) + {{flag1,flag2}.BoolActions}.
+
+NEIGHBOR2 	= (flag2.setTrue -> TEST),
+TEST 		= (flag1[raised:Bool] ->
+				if (raised) then (flag2.setFalse -> NEIGHBOR2)
+				else (enter -> exit -> flag2.setFalse -> NEIGHBOR2)
+				) + {{flag1,flag2}.BoolActions}.
+
+
+
+
+
+/*Safety property MUTEX is defined. Once compiled, the program shows that MUTEX property is not violated,
+* confirming the mutual exclusion. After clicking CHECK/SAFETY, we get this output: No deadlocks/errors.
+*/
+
+property MUTEX = (n1.enter -> n1.exit -> MUTEX | n2.enter -> n2.exit -> MUTEX).
+
+||FIELD = (n1:NEIGHBOR1 || n2: NEIGHBOR2 || {n1,n2}::FLAGS ||MUTEX).
+
+
+
+
+/*Progress properties ENTER1 and ENTER2 are defined. Once compiled, the program shows no progress violations.
+* After clicking CHECK/PROGRESS, the following output is obtained:
+*
+*     Progress Check...
+*     -- States: 27 Transitions: 54 Memory used: 49268K
+*     No progress violations detected.
+*     Progress Check in: 0ms
+*/
+
+progress ENTER1 = {n1.enter}
+progress ENTER2 = {n2.enter}
+
+
+
+/*Finally, the next line is written to implement "greedy neighbors" behavior. As a result both setTrue actions get prioritized.
+* The consequence is that once compiled, a progress violation ocurred for both progress properties.
+* After clicking CHECK/PROGRESS, the following output is obtained:
+*
+*	Progress Check...
+*	-- States: 9 Transitions: 14 Memory used: 80259K
+*	Finding trace to cycle...
+*	Finding trace in cycle...
+*	Progress violation: ENTER2 ENTER1
+*	Trace to terminal set of states:
+*		n2.flag2.setTrue
+*	Cycle in terminal set:
+*		n1.flag1.setTrue
+*		n1.flag2.1
+*		n1.flag1.setFalse
+*	Actions in terminal set:
+*		{n1.{flag1.{setFalse, setTrue}, flag2[1]}, n2.{flag1[1], flag2.{setFalse, setTrue}}}
+*	Progress Check in: 0ms
+*/
+
+||GREEDY = FIELD << {{n1,n2}.{flag1.setTrue,flag2.setTrue}}.
